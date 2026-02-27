@@ -6,36 +6,36 @@ st.set_page_config(page_title="Chat Anthropic", page_icon="🧠", layout="center
 # ── Sidebar ──────────────────────────────────────────────
 with st.sidebar:
     st.header("⚙️ Configuración")
-
     api_key = st.text_input("🔑 Anthropic API Key", type="password", placeholder="sk-ant-...")
-
     st.divider()
-    st.subheader("🤖 Modelo")
 
+    st.subheader("🤖 Modelo")
     model = st.selectbox("Modelo", [
         "claude-opus-4-5",
         "claude-sonnet-4-5",
         "claude-haiku-4-5-20251001",
     ])
-
     st.divider()
-    st.subheader("🎛️ Parámetros")
 
+    st.subheader("🎛️ Parámetros")
     max_tokens = st.slider("Max Tokens", min_value=256, max_value=8192, value=1024, step=256,
                            help="Número máximo de tokens en la respuesta.")
 
-    temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=1.0, step=0.05,
-                            help="0 = más determinista, 1 = más creativo.")
+    usar_top_p = st.toggle("Usar Top P en lugar de Temperature", value=False,
+                           help="La API no permite usar temperature y top_p al mismo tiempo.")
 
-    top_p = st.slider("Top P", min_value=0.0, max_value=1.0, value=0.999, step=0.001,
-                      help="Muestrea del top P% de tokens más probables.")
+    if usar_top_p:
+        top_p = st.slider("Top P", min_value=0.0, max_value=1.0, value=0.999, step=0.001,
+                          help="Muestrea del top P% de tokens más probables.")
+    else:
+        temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=1.0, step=0.05,
+                                help="0 = más determinista, 1 = más creativo.")
 
     top_k = st.slider("Top K", min_value=1, max_value=500, value=250, step=1,
                       help="Considera solo los K tokens más probables.")
-
     st.divider()
-    st.subheader("🤖 Personalidad")
 
+    st.subheader("🤖 Personalidad")
     if "system_prompt" not in st.session_state:
         st.session_state.system_prompt = ""
 
@@ -46,7 +46,6 @@ with st.sidebar:
         height=160,
         label_visibility="collapsed"
     )
-
     if st.button("💾 Guardar personalidad", use_container_width=True):
         st.session_state.system_prompt = system_input
         st.success("¡Guardado!")
@@ -86,11 +85,15 @@ if prompt := st.chat_input("Escribe un mensaje..."):
                 kwargs = dict(
                     model=model,
                     max_tokens=max_tokens,
-                    temperature=temperature,
-                    top_p=top_p,
                     top_k=top_k,
                     messages=st.session_state.messages,
                 )
+
+                if usar_top_p:
+                    kwargs["top_p"] = top_p
+                else:
+                    kwargs["temperature"] = temperature
+
                 if st.session_state.system_prompt:
                     kwargs["system"] = st.session_state.system_prompt
 
@@ -98,6 +101,7 @@ if prompt := st.chat_input("Escribe un mensaje..."):
                 reply = response.content[0].text
                 st.write(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
+
             except Exception as e:
                 st.error(f"Error: {e}")
 
